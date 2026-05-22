@@ -69,6 +69,8 @@ public class MainActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     private LinearLayout root;
     private LinearLayout chatList;
+    private LinearLayout connectionPanel;
+    private LinearLayout statusCard;
     private ScrollView chatScroll;
     private EditText baseUrlInput;
     private EditText modelInput;
@@ -76,8 +78,11 @@ public class MainActivity extends Activity {
     private EditText promptInput;
     private TextView statusText;
     private TextView subStatusText;
+    private TextView compactStatusText;
+    private TextView connectionSummaryText;
     private Button sendButton;
     private Button showKeyButton;
+    private Button toggleConfigButton;
     private Button copyAnswerButton;
     private Button clearButton;
     private AnimatedNeuralView neuralView;
@@ -85,6 +90,7 @@ public class MainActivity extends Activity {
     private boolean busy = false;
     private boolean cancelled = false;
     private boolean keyVisible = false;
+    private boolean configExpanded = true;
     private HttpURLConnection activeConnection;
     private Thread activeThread;
     private long startedAt = 0L;
@@ -202,41 +208,75 @@ public class MainActivity extends Activity {
 
         LinearLayout config = new LinearLayout(this);
         config.setOrientation(LinearLayout.VERTICAL);
-        config.setPadding(dp(14), dp(12), dp(14), dp(12));
+        config.setPadding(dp(12), dp(10), dp(12), dp(10));
         config.setBackground(new RoundDrawable(CARD2, Color.rgb(12, 64, 48), dp(18), dp(1)));
         LinearLayout.LayoutParams cfgLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         cfgLp.setMargins(0, dp(10), 0, dp(8));
         main.addView(config, cfgLp);
 
-        TextView cfgTitle = tv("⚙ تنظیمات اتصال", 13, TEXT, Typeface.BOLD);
-        cfgTitle.setGravity(Gravity.RIGHT);
-        config.addView(cfgTitle);
+        LinearLayout configHeader = new LinearLayout(this);
+        configHeader.setOrientation(LinearLayout.HORIZONTAL);
+        configHeader.setGravity(Gravity.CENTER_VERTICAL);
+        config.addView(configHeader, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        TextView cfgTitle = tv("⚙ تنظیمات اتصال", 14, TEXT, Typeface.BOLD);
+        cfgTitle.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        configHeader.addView(cfgTitle, new LinearLayout.LayoutParams(0, dp(42), 1f));
+
+        toggleConfigButton = button("بستن ▲", INPUT, NEON);
+        LinearLayout.LayoutParams toggleLp = new LinearLayout.LayoutParams(dp(116), dp(40));
+        toggleLp.setMargins(dp(8), 0, 0, 0);
+        configHeader.addView(toggleConfigButton, toggleLp);
+        toggleConfigButton.setOnClickListener(v -> setConfigExpanded(!configExpanded, true));
+        configHeader.setOnClickListener(v -> setConfigExpanded(!configExpanded, true));
+
+        connectionSummaryText = tv("", 11, MUTED, Typeface.NORMAL);
+        connectionSummaryText.setGravity(Gravity.RIGHT);
+        LinearLayout.LayoutParams summaryLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        summaryLp.setMargins(0, dp(3), 0, 0);
+        config.addView(connectionSummaryText, summaryLp);
+
+        compactStatusText = tv("● آماده • در انتظار پیام", 11, NEON, Typeface.BOLD);
+        compactStatusText.setGravity(Gravity.RIGHT);
+        LinearLayout.LayoutParams compactStatusLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        compactStatusLp.setMargins(0, dp(6), 0, dp(2));
+        config.addView(compactStatusText, compactStatusLp);
+
+        connectionPanel = new LinearLayout(this);
+        connectionPanel.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams panelLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        panelLp.setMargins(0, dp(5), 0, 0);
+        config.addView(connectionPanel, panelLp);
 
         baseUrlInput = input("Base URL / آدرس API", false);
         modelInput = input("Model / مدل", false);
         apiKeyInput = input("API Key / کلید", true);
-        addInput(config, baseUrlInput, dp(8));
-        addInput(config, modelInput, dp(7));
-        addInput(config, apiKeyInput, dp(7));
+        addInput(connectionPanel, baseUrlInput, dp(8));
+        addInput(connectionPanel, modelInput, dp(7));
+        addInput(connectionPanel, apiKeyInput, dp(7));
 
         LinearLayout toolRow = new LinearLayout(this);
         toolRow.setGravity(Gravity.RIGHT);
         toolRow.setOrientation(LinearLayout.HORIZONTAL);
-        config.addView(toolRow, new LinearLayout.LayoutParams(
+        connectionPanel.addView(toolRow, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(42)));
         showKeyButton = button("نمایش کلید", INPUT, TEXT);
         toolRow.addView(showKeyButton, new LinearLayout.LayoutParams(0, dp(36), 1f));
         showKeyButton.setOnClickListener(v -> toggleKey());
 
-        LinearLayout statusCard = new LinearLayout(this);
+        statusCard = new LinearLayout(this);
         statusCard.setOrientation(LinearLayout.VERTICAL);
         statusCard.setPadding(dp(14), dp(8), dp(14), dp(8));
         statusCard.setBackground(new RoundDrawable(Color.rgb(6, 10, 14), Color.rgb(26, 45, 55), dp(16), dp(1)));
         LinearLayout.LayoutParams stLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         stLp.setMargins(0, dp(8), 0, 0);
-        config.addView(statusCard, stLp);
+        connectionPanel.addView(statusCard, stLp);
         statusText = tv("آماده", 13, NEON, Typeface.BOLD);
         statusText.setGravity(Gravity.RIGHT);
         subStatusText = tv("در انتظار پیام", 11, MUTED, Typeface.NORMAL);
@@ -249,7 +289,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams actLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(42));
         actLp.setMargins(0, dp(8), 0, 0);
-        config.addView(actions, actLp);
+        connectionPanel.addView(actions, actLp);
         clearButton = button("پاک کردن", INPUT, TEXT);
         copyAnswerButton = button("کپی پاسخ", INPUT, TEXT);
         Button resetButton = button("ریست حافظه", INPUT, TEXT);
@@ -312,13 +352,74 @@ public class MainActivity extends Activity {
     private void loadSettings() {
         baseUrlInput.setText(prefs.getString("base_url", DEFAULT_BASE_URL));
         modelInput.setText(prefs.getString("model", DEFAULT_MODEL));
+        setConfigExpanded(prefs.getBoolean("config_expanded", true), false);
+        updateConnectionSummary();
     }
 
     private void saveSettings() {
         prefs.edit()
                 .putString("base_url", baseUrlInput.getText().toString().trim())
                 .putString("model", modelInput.getText().toString().trim())
+                .putBoolean("config_expanded", configExpanded)
                 .apply();
+        updateConnectionSummary();
+    }
+
+    private void setConfigExpanded(boolean expanded, boolean animate) {
+        configExpanded = expanded;
+        if (toggleConfigButton == null || connectionPanel == null) return;
+
+        toggleConfigButton.setText(expanded ? "بستن ▲" : "تنظیمات ▼");
+        toggleConfigButton.setTextColor(expanded ? TEXT : NEON);
+
+        if (expanded) {
+            connectionPanel.setVisibility(View.VISIBLE);
+            if (animate) {
+                connectionPanel.setAlpha(0f);
+                connectionPanel.setTranslationY(-dp(6));
+                connectionPanel.animate()
+                        .alpha(1f)
+                        .translationY(0f)
+                        .setDuration(180)
+                        .start();
+            } else {
+                connectionPanel.setAlpha(1f);
+                connectionPanel.setTranslationY(0f);
+            }
+        } else {
+            if (animate && connectionPanel.getVisibility() == View.VISIBLE) {
+                connectionPanel.animate()
+                        .alpha(0f)
+                        .translationY(-dp(6))
+                        .setDuration(130)
+                        .withEndAction(() -> {
+                            if (!configExpanded) {
+                                connectionPanel.setVisibility(View.GONE);
+                                connectionPanel.setAlpha(1f);
+                                connectionPanel.setTranslationY(0f);
+                            }
+                        })
+                        .start();
+            } else {
+                connectionPanel.setVisibility(View.GONE);
+                connectionPanel.setAlpha(1f);
+                connectionPanel.setTranslationY(0f);
+            }
+        }
+        prefs.edit().putBoolean("config_expanded", configExpanded).apply();
+        updateConnectionSummary();
+    }
+
+    private void updateConnectionSummary() {
+        if (connectionSummaryText == null || modelInput == null || apiKeyInput == null) return;
+        String model = modelInput.getText().toString().trim();
+        if (model.length() == 0) model = DEFAULT_MODEL;
+        String keyState = apiKeyInput.length() > 0 ? "کلید آماده" : "کلید وارد نشده";
+        if (configExpanded) {
+            connectionSummaryText.setText("اطلاعات اتصال را وارد کن؛ بعد از ارسال خودکار جمع می‌شود");
+        } else {
+            connectionSummaryText.setText("ChatGPT • " + shortText(model, 20) + " • " + keyState);
+        }
     }
 
     private void toggleKey() {
@@ -344,19 +445,26 @@ public class MainActivity extends Activity {
         String model = modelInput.getText().toString().trim();
         String key = apiKeyInput.getText().toString().trim();
         if (!(baseUrl.startsWith("http://") || baseUrl.startsWith("https://"))) {
+            setConfigExpanded(true, true);
+            baseUrlInput.requestFocus();
             addSystemError("Base URL باید با http:// یا https:// شروع شود.");
             return;
         }
         if (model.length() == 0) {
+            setConfigExpanded(true, true);
+            modelInput.requestFocus();
             addSystemError("نام مدل خالی است.");
             return;
         }
         if (key.length() == 0) {
+            setConfigExpanded(true, true);
+            apiKeyInput.requestFocus();
             addSystemError("کلید API را وارد کن.");
             return;
         }
 
         saveSettings();
+        setConfigExpanded(false, true);
         lastPrompt = prompt;
         promptInput.setText("");
         addUserMessage(prompt);
@@ -510,6 +618,12 @@ public class MainActivity extends Activity {
     private void setStatus(String a, String b) {
         statusText.setText(a);
         subStatusText.setText(b);
+        if (compactStatusText != null) {
+            int statusColor = a.contains("خطا") ? ERROR :
+                    (a.contains("فکر") || a.contains("نمایش")) ? WARN : NEON;
+            compactStatusText.setTextColor(statusColor);
+            compactStatusText.setText("● " + a + " • " + b);
+        }
     }
 
     private void addUserMessage(String text) {
