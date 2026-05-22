@@ -1,12 +1,15 @@
 package club.apk.ai;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.os.Bundle;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -63,6 +66,11 @@ public class MainActivity extends Activity {
 
     private static final String DEFAULT_BASE_URL = "https://api.freemodel.dev";
     private static final String DEFAULT_MODEL = "gpt-5.5";
+    private static final String USDT_BEP20_WALLET = "0x3792db72b616a0620AB76ceA016356246b355897";
+    private static final String DEVELOPER_ID = "@darkbiitt";
+    private static final String CHANNEL_ID = "@apkclub";
+    private static final String DEVELOPER_URL = "https://t.me/darkbiitt";
+    private static final String CHANNEL_URL = "https://t.me/apkclub";
     private static final int MAX_HISTORY_ITEMS = 10;
     private static final int MAX_TYPEWRITER_CHARS = 5000;
 
@@ -83,6 +91,7 @@ public class MainActivity extends Activity {
     private Button sendButton;
     private Button showKeyButton;
     private Button toggleConfigButton;
+    private Button supportButton;
     private Button copyAnswerButton;
     private Button clearButton;
     private AnimatedNeuralView neuralView;
@@ -302,6 +311,15 @@ public class MainActivity extends Activity {
         copyAnswerButton.setOnClickListener(v -> copyText(lastAnswer, "پاسخی برای کپی نیست"));
         resetButton.setOnClickListener(v -> { history.clear(); toast("حافظه چت ریست شد"); });
 
+        supportButton = button("💚 حمایت و ارتباط با ما", Color.rgb(0, 35, 25), NEON);
+        supportButton.setBackground(new RoundDrawable(
+                Color.rgb(0, 35, 25), Color.rgb(0, 179, 110), dp(13), dp(1)));
+        LinearLayout.LayoutParams supportLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        supportLp.setMargins(0, dp(9), 0, dp(2));
+        connectionPanel.addView(supportButton, supportLp);
+        supportButton.setOnClickListener(v -> showSupportDialog());
+
         chatScroll = new ScrollView(this);
         chatScroll.setFillViewport(false);
         chatScroll.setBackground(new RoundDrawable(CARD, Color.rgb(17, 27, 36), dp(18), dp(1)));
@@ -416,7 +434,7 @@ public class MainActivity extends Activity {
         if (model.length() == 0) model = DEFAULT_MODEL;
         String keyState = apiKeyInput.length() > 0 ? "کلید آماده" : "کلید وارد نشده";
         if (configExpanded) {
-            connectionSummaryText.setText("اطلاعات اتصال را وارد کن؛ بعد از ارسال خودکار جمع می‌شود");
+            connectionSummaryText.setText("اتصال، حمایت و ارتباط • بعد از ارسال خودکار جمع می‌شود");
         } else {
             connectionSummaryText.setText("ChatGPT • " + shortText(model, 20) + " • " + keyState);
         }
@@ -821,6 +839,98 @@ public class MainActivity extends Activity {
         lp.setMargins(0, 0, 0, dp(10));
         chatList.addView(t, lp);
         scrollDown();
+    }
+
+    private void showSupportDialog() {
+        final AlertDialog dialog = new AlertDialog.Builder(this).create();
+
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(16), dp(18), dp(16));
+        card.setBackground(new RoundDrawable(CARD2, GLOW, dp(20), dp(1)));
+
+        TextView title = tv("💚 حمایت و ارتباط", 18, NEON, Typeface.BOLD);
+        title.setGravity(Gravity.RIGHT);
+        card.addView(title);
+
+        TextView subtitle = tv("AI APKCLUB • راه‌های رسمی ارتباط و حمایت", 11, MUTED, Typeface.NORMAL);
+        subtitle.setGravity(Gravity.RIGHT);
+        LinearLayout.LayoutParams subtitleLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        subtitleLp.setMargins(0, dp(2), 0, dp(14));
+        card.addView(subtitle, subtitleLp);
+
+        TextView walletLabel = tv("USDT BEP20 WALLET", 11, MUTED, Typeface.BOLD);
+        walletLabel.setGravity(Gravity.LEFT);
+        card.addView(walletLabel);
+
+        TextView walletText = tv(USDT_BEP20_WALLET, 12, TEXT, Typeface.BOLD);
+        walletText.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        walletText.setTextIsSelectable(true);
+        walletText.setPadding(dp(12), dp(12), dp(12), dp(12));
+        walletText.setBackground(new RoundDrawable(CODE_BG, Color.rgb(12, 84, 60), dp(12), dp(1)));
+        LinearLayout.LayoutParams walletLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        walletLp.setMargins(0, dp(6), 0, dp(10));
+        card.addView(walletText, walletLp);
+
+        Button copyWallet = button("📋 کپی آدرس ولت", NEON, Color.rgb(0, 24, 18));
+        copyWallet.setBackground(new RoundDrawable(NEON, Color.TRANSPARENT, dp(12), 0));
+        card.addView(copyWallet, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(44)));
+        copyWallet.setOnClickListener(v -> {
+            copyText(USDT_BEP20_WALLET, "");
+            copyWallet.setText("کپی شد ✅");
+            ui.postDelayed(() -> copyWallet.setText("📋 کپی آدرس ولت"), 1500);
+        });
+
+        LinearLayout links = new LinearLayout(this);
+        links.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams linksLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(46));
+        linksLp.setMargins(0, dp(12), 0, 0);
+        card.addView(links, linksLp);
+
+        Button developer = button("💬 " + DEVELOPER_ID, INPUT, NEON);
+        developer.setBackground(new RoundDrawable(INPUT, GLOW, dp(12), dp(1)));
+        Button channel = button("📢 " + CHANNEL_ID, INPUT, NEON);
+        channel.setBackground(new RoundDrawable(INPUT, GLOW, dp(12), dp(1)));
+        LinearLayout.LayoutParams developerLp = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        LinearLayout.LayoutParams channelLp = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        developerLp.setMargins(0, 0, dp(5), 0);
+        channelLp.setMargins(dp(5), 0, 0, 0);
+        links.addView(developer, developerLp);
+        links.addView(channel, channelLp);
+        developer.setOnClickListener(v -> openUrl(DEVELOPER_URL));
+        channel.setOnClickListener(v -> openUrl(CHANNEL_URL));
+
+        TextView note = tv("روی آیدی‌ها بزن تا تلگرام باز شود", 10, MUTED, Typeface.NORMAL);
+        note.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams noteLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        noteLp.setMargins(0, dp(10), 0, 0);
+        card.addView(note, noteLp);
+
+        dialog.setView(card, dp(10), dp(10), dp(10), dp(10));
+        dialog.setOnShowListener(ignored -> {
+            Window window = dialog.getWindow();
+            if (window != null) {
+                window.setBackgroundDrawableResource(android.R.color.transparent);
+                WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+                lp.copyFrom(window.getAttributes());
+                lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                window.setAttributes(lp);
+            }
+        });
+        dialog.show();
+    }
+
+    private void openUrl(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception ignored) {
+            toast("امکان باز کردن لینک وجود ندارد");
+        }
     }
 
     private void clearChat() {
